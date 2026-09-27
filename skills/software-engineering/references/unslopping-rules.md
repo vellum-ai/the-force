@@ -464,6 +464,35 @@ Define the complete structure the caller consumes, call `safeParse`, check `succ
 
 Keep deterministic handwritten checks for primitive values or domain rules after parsing, and preserve bespoke user-facing validation errors when a generic schema error would change the interface.
 
+### 14. Reuse the authoritative boundary schema
+
+Before defining a schema for unknown data, search the producer contract and nearby consumers for the schema that already owns that boundary. Parse with one source-of-truth schema. Do not add a second local partial schema just to inspect one field before parsing the complete contract. Parallel schemas create overlapping definitions, duplicate validation, and drift about which wire shapes are valid.
+
+Slop:
+
+```ts
+const EnvelopeSchema = z.object({
+  contact: z.unknown().optional(),
+});
+
+const envelope = EnvelopeSchema.safeParse(result);
+if (!envelope.success || envelope.data.contact == null) {
+  return undefined;
+}
+const parsed = GetContactResponseSchema.safeParse(result);
+```
+
+Unslopped:
+
+```ts
+const parsed = GetContactResponseSchema.safeParse(result);
+if (!parsed.success) {
+  return undefined;
+}
+```
+
+If the producer legitimately returns more than one shape, fix or compose the authoritative contract so it represents those variants, then reuse it everywhere. Keep a separate schema only when it validates a genuinely different boundary or intentionally narrower public contract, not when it exists to preserve a logging distinction or another piece of local control-flow trivia.
+
 ---
 
 ## Out of scope
